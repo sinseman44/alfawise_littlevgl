@@ -506,9 +506,9 @@
   // Please refine the PID settings for your own machine to avoid the E1 hotend error. These a basic settings allowing first startups.
   // Use the command M303 E0 S200 C8 each time you make any changes to your extruder
 
-  #define DEFAULT_Kp 17.22
-  #define DEFAULT_Ki 1.00
-  #define DEFAULT_Kd 74.22
+  #define DEFAULT_Kp 17.11
+  #define DEFAULT_Ki 0.96
+  #define DEFAULT_Kd 76.15
 
 
   // MakerGear
@@ -1209,7 +1209,7 @@
  * Normally G28 leaves leveling disabled on completion. Enable
  * this option to have G28 restore the prior leveling state.
  */
-//#define RESTORE_LEVELING_AFTER_G28
+#define RESTORE_LEVELING_AFTER_G28
 
 /**
  * Enable detailed logging of G28, G29, M48, etc.
@@ -1326,7 +1326,7 @@
  * Add a bed leveling sub-menu for ABL or MBL.
  * Include a guided procedure if manual probing is enabled.
  */
-//#define LCD_BED_LEVELING
+#define LCD_BED_LEVELING
 
 #if ENABLED(LCD_BED_LEVELING)
   #define MESH_EDIT_Z_STEP  0.025 // (mm) Step size while manually probing Z axis.
