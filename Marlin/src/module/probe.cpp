@@ -54,6 +54,10 @@
   #include "planner.h"
 #endif
 
+#if ENABLED(MEASURE_BACKLASH_WHEN_PROBING)
+  #include "../feature/backlash.h"
+#endif
+
 float zprobe_zoffset; // Initialized by settings.load()
 
 #if ENABLED(BLTOUCH)
@@ -97,6 +101,24 @@ float zprobe_zoffset; // Initialized by settings.load()
     #if HAS_SOLENOID_1 && DISABLED(EXT_SOLENOID)
       WRITE(SOL1_PIN, !stow); // switch solenoid
     #endif
+  }
+
+#elif ENABLED(TOUCHMI_PROBE)
+  void run_deploy_moves_script() {
+    #if ENABLED(TOUCHMI_POSITION_RIGHT)
+      do_blocking_move_to_x(TOUCHMI_PROBE_DEPLOY_X);
+    #else
+      do_blocking_move_to_x(X_MIN_BED);
+    #endif
+  }
+  void run_stow_moves_script() {
+    endstops.enable_z_probe(false);
+    #define TOUCHMI_POSITION_BEFORE_PROBE_Z current_position[Z_AXIS]
+    #define TOUCHMI_POSITION_BEFORE_PROBE_X current_position[X_AXIS]
+    #define TOUCHMI_POSITION_BEFORE_PROBE_Y current_position[Y_AXIS]
+    const float TOUCHMI_RETURN_POSITION[] = { TOUCHMI_POSITION_BEFORE_PROBE_X,TOUCHMI_POSITION_BEFORE_PROBE_Y, TOUCHMI_POSITION_BEFORE_PROBE_Z };
+    do_blocking_move_to_z(PROBE_RETRACT_HEIGHT, MMM_TO_MMS(HOMING_FEEDRATE_Z));
+    do_blocking_move_to(TOUCHMI_RETURN_POSITION, MMM_TO_MMS(HOMING_FEEDRATE_Z));
   }
 
 #elif ENABLED(Z_PROBE_ALLEN_KEY)
@@ -279,7 +301,7 @@ float zprobe_zoffset; // Initialized by settings.load()
     #endif
     #if ENABLED(PROBING_STEPPERS_OFF)
       disable_e_steppers();
-      #if DISABLED(DELTA)
+      #if DISABLED(DELTA, HOME_AFTER_DEACTIVATE)
         disable_X(); disable_Y();
       #endif
     #endif
@@ -352,9 +374,15 @@ FORCE_INLINE void probe_specific_action(const bool deploy) {
 
     dock_sled(!deploy);
 
-  #elif HAS_Z_SERVO_PROBE && DISABLED(BLTOUCH)
+  #elif HAS_Z_SERVO_PROBE
 
-    MOVE_SERVO(Z_PROBE_SERVO_NR, servo_angles[Z_PROBE_SERVO_NR][deploy ? 0 : 1]);
+    #if DISABLED(BLTOUCH)
+      MOVE_SERVO(Z_PROBE_SERVO_NR, servo_angles[Z_PROBE_SERVO_NR][deploy ? 0 : 1]);
+    #elif ENABLED(BLTOUCH_HS_MODE)
+      // In HIGH SPEED MODE, use the normal retractable probe logic in this code
+      // i.e. no intermediate STOWs and DEPLOYs in between individual probe actions
+      if (deploy) bltouch.deploy(); else bltouch.stow();
+    #endif
 
   #elif ENABLED(Z_PROBE_ALLEN_KEY)
 
@@ -363,6 +391,10 @@ FORCE_INLINE void probe_specific_action(const bool deploy) {
   #elif ENABLED(RACK_AND_PINION_PROBE)
 
     do_blocking_move_to_x(deploy ? Z_PROBE_DEPLOY_X : Z_PROBE_RETRACT_X);
+
+  #elif ENABLED(TOUCHMI_PROBE)
+
+    deploy ? run_deploy_moves_script() : run_stow_moves_script();
 
   #elif DISABLED(PAUSE_BEFORE_DEPLOY_STOW)
 
@@ -463,30 +495,6 @@ bool set_probe_deployed(const bool deploy) {
   }
 #endif
 
-#if ENABLED(MEASURE_BACKLASH_WHEN_PROBING)
-  #if USES_Z_MIN_PROBE_ENDSTOP
-    #define TEST_PROBE_PIN (READ(Z_MIN_PROBE_PIN) != Z_MIN_PROBE_ENDSTOP_INVERTING)
-  #else
-    #define TEST_PROBE_PIN (READ(Z_MIN_PIN) != Z_MIN_ENDSTOP_INVERTING)
-  #endif
-
-  extern float backlash_measured_mm[];
-  extern uint8_t backlash_measured_num[];
-
-  /* Measure Z backlash by raising nozzle in increments until probe deactivates */
-  static void measure_backlash_with_probe() {
-    if (backlash_measured_num[Z_AXIS] == 255) return;
-
-    float start_height = current_position[Z_AXIS];
-    while (current_position[Z_AXIS] < (start_height + BACKLASH_MEASUREMENT_LIMIT) && TEST_PROBE_PIN)
-      do_blocking_move_to_z(current_position[Z_AXIS] + BACKLASH_MEASUREMENT_RESOLUTION, MMM_TO_MMS(BACKLASH_MEASUREMENT_FEEDRATE));
-
-    // The backlash from all probe points is averaged, so count the number of measurements
-    backlash_measured_mm[Z_AXIS] += current_position[Z_AXIS] - start_height;
-    backlash_measured_num[Z_AXIS]++;
-  }
-#endif
-
 /**
  * @brief Used by run_z_probe to do a single Z probe move.
  *
@@ -512,9 +520,8 @@ static bool do_probe_move(const float z, const float fr_mm_s) {
     }
   #endif
 
-  // Deploy BLTouch at the start of any probe
-  #if ENABLED(BLTOUCH)
-    if (bltouch.deploy()) return true;
+  #if ENABLED(BLTOUCH) && DISABLED(BLTOUCH_HS_MODE)
+    if (bltouch.deploy()) return true; // DEPLOY in LOW SPEED MODE on every probe action
   #endif
 
   // Disable stealthChop if used. Enable diag1 pin on driver.
@@ -564,9 +571,8 @@ static bool do_probe_move(const float z, const float fr_mm_s) {
     tmc_disable_stallguard(stepperZ, stealth_states.z);
   #endif
 
-  // Retract BLTouch immediately after a probe if it was triggered
-  #if ENABLED(BLTOUCH)
-    if (probe_triggered && bltouch.stow()) return true;
+  #if ENABLED(BLTOUCH) && DISABLED(BLTOUCH_HS_MODE)
+    if (probe_triggered && bltouch.stow()) return true; // STOW in LOW SPEED MODE on trigger on every probe action
   #endif
 
   // Clear endstop flags
@@ -643,7 +649,7 @@ static float run_z_probe() {
       }
 
       #if ENABLED(MEASURE_BACKLASH_WHEN_PROBING)
-        measure_backlash_with_probe();
+        backlash.measure_with_probe();
       #endif
 
   #if MULTIPLE_PROBING > 2

@@ -101,15 +101,15 @@ void HAL_timer_start(const uint8_t timer_num, const uint32_t frequency) {
     case 3: irq_num = NVIC_TIMER3; break;
     case 4: irq_num = NVIC_TIMER4; break;
     case 5: irq_num = NVIC_TIMER5; break;
-#if defined(STM32_HIGH_DENSITY)
-    // 6 & 7 are basic timers, avoid them
-    case 8: irq_num = NVIC_TIMER8_CC; break;
-#endif
+    #ifdef STM32_HIGH_DENSITY
+      // 6 & 7 are basic timers, avoid them
+      case 8: irq_num = NVIC_TIMER8_CC; break;
+    #endif
     default:
       /**
-       *  We should not get here, add Sanitycheck for timer number. Should be a general timer
-       *  since basic timers do not have CC channels.
-       *  Advanced timers should be skipped if possible too, and are not listed above.
+       * This should never happen. Add a Sanitycheck for timer number.
+       * Should be a general timer since basic timers have no CC channels.
+       * Advanced timers should be skipped if possible too, and are not listed above.
        */
       break;
   }
@@ -126,8 +126,9 @@ void HAL_timer_start(const uint8_t timer_num, const uint32_t frequency) {
       timer_set_count(STEP_TIMER_DEV, 0);
       timer_set_prescaler(STEP_TIMER_DEV, (uint16_t)(STEPPER_TIMER_PRESCALE - 1));
       timer_set_reload(STEP_TIMER_DEV, 0xFFFF);
-      timer_oc_set_mode(STEP_TIMER_DEV, STEP_TIMER_CHAN, TIMER_OC_MODE_FROZEN, TIMER_OC_PE); // no output pin change, enable preload
+      timer_oc_set_mode(STEP_TIMER_DEV, STEP_TIMER_CHAN, TIMER_OC_MODE_FROZEN, TIMER_OC_NO_PRELOAD); // no output pin change
       timer_set_compare(STEP_TIMER_DEV, STEP_TIMER_CHAN, MIN(hal_timer_t(HAL_TIMER_TYPE_MAX), (STEPPER_TIMER_RATE / frequency)));
+      timer_no_ARR_preload_ARPE(STEP_TIMER_DEV); // Need to be sure no preload on ARR register
       timer_attach_interrupt(STEP_TIMER_DEV, STEP_TIMER_CHAN, stepTC_Handler);
       nvic_irq_set_priority(irq_num, STEP_TIMER_IRQ_PRIO);
       timer_generate_update(STEP_TIMER_DEV);
@@ -218,11 +219,7 @@ timer_dev* get_timer_dev(int number) {
     #if STM32_HAVE_TIMER(14)
       case 14: return &timer14;
     #endif
-      default: {
-        // need to return something...
-        static timer_dev dummy;
-        return &dummy;
-      }
+    default: return nullptr;
   }
 }
 

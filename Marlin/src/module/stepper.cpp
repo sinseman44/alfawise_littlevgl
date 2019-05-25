@@ -133,7 +133,7 @@ Stepper stepper; // Singleton
 
 // private:
 
-block_t* Stepper::current_block; // (= NULL) A pointer to the block currently being traced
+block_t* Stepper::current_block; // (= nullptr) A pointer to the block currently being traced
 
 uint8_t Stepper::last_direction_bits, // = 0
         Stepper::axis_did_move; // = 0
@@ -1373,29 +1373,8 @@ void Stepper::isr() {
   // Now 'next_isr_ticks' contains the period to the next Stepper ISR - And we are
   // sure that the time has not arrived yet - Warrantied by the scheduler
 
-#ifndef __STM32F1__
   // Set the next ISR to fire at the proper time
   HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(next_isr_ticks));
-
-#else
-  HAL_timer_set_reload(STEP_TIMER_NUM, hal_timer_t(next_isr_ticks));
-  // La valeur next_isr ticks ne sera pas appliquee sur l'isr actuelle, mais sur la suivante
-  // il faut decaler aussi les steps à effectuer vers la prochaine it, s
-  //    >>>> a decaler d'une ISR :
-
-  // Run main stepping pulse phase ISR if we have to
-  // A modifier : if (!nextMainISR) Stepper::stepper_pulse_phase_isr();
-  // il faudrait une variable statique  previous_nextMainISR = next_MainISR
-  // et la ligne devient : if (!previous_nextMainISR) Stepper::stepper_pulse_phase_isr()
-  // mais la je coupe peut etre les cheveux en quatre. On parle d'un pas.... 0.01mm...
-
-  // Autre piste importante : La config de libmaple, et c'est peut etre ce qui nous a tue, 1 BIT!!
-
-  //* NOTE: By default libmaple sets ARPE = 1, which means the Auto reload register is preloaded
-  //(will only update with an update event)
-  // ARPE needs to be set to 0 to use HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(next_isr_ticks));
-  
-#endif
 
   // Don't forget to finally reenable interrupts
   ENABLE_ISRS();
@@ -1415,7 +1394,7 @@ void Stepper::stepper_pulse_phase_isr() {
     abort_current_block = false;
     if (current_block) {
       axis_did_move = 0;
-      current_block = NULL;
+      current_block = nullptr;
       planner.discard_current_block();
     }
   }
@@ -1562,7 +1541,7 @@ uint32_t Stepper::stepper_block_phase_isr() {
         runout.block_completed(current_block);
       #endif
       axis_did_move = 0;
-      current_block = NULL;
+      current_block = nullptr;
       planner.discard_current_block();
     }
     else {
@@ -2348,10 +2327,10 @@ void Stepper::report_positions() {
     #define _SAVE_START NOOP
     #if EXTRA_CYCLES_BABYSTEP > 0
       #define _PULSE_WAIT DELAY_NS(EXTRA_CYCLES_BABYSTEP * NANOSECONDS_PER_CYCLE)
-    #elif STEP_PULSE_CYCLES > 0
-      #define _PULSE_WAIT NOOP
     #elif ENABLED(DELTA)
       #define _PULSE_WAIT DELAY_US(2);
+    #elif STEP_PULSE_CYCLES > 0
+      #define _PULSE_WAIT NOOP
     #else
       #define _PULSE_WAIT DELAY_US(4);
     #endif
