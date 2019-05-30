@@ -199,6 +199,7 @@
 #define MSG_MOVE_01MM                       _UxGT("Déplacer 0.1mm")
 #define MSG_MOVE_1MM                        _UxGT("Déplacer 1mm")
 #define MSG_MOVE_10MM                       _UxGT("Déplacer 10mm")
+#define MSG_MOVE_50MM                       _UxGT("Déplacer 50mm")
 #define MSG_SPEED                           _UxGT("Vitesse")
 #define MSG_BED_Z                           _UxGT("Lit Z")
 #define MSG_NOZZLE                          _UxGT("Buse")
