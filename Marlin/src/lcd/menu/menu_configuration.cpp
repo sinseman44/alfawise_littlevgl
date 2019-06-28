@@ -191,14 +191,14 @@ static void lcd_factory_settings() {
 
 #endif
 
-#if ENABLED(TOUCHMI_PROBE)
+#if ENABLED(TOUCH_MI_PROBE)
   void menu_touchmi() {
     START_MENU();
     ui.defer_status_screen();
     MENU_BACK(MSG_CONFIGURATION);
-    MENU_ITEM(gcode, MSG_TOUCHMI_INIT, PSTR("M851 Z0\nM500\nG28\nS211 S0\nG1 F200 Z0"));
+    MENU_ITEM(gcode, MSG_TOUCHMI_INIT, PSTR("M851 Z0\nG28\nG1 F200 Z0"));
     MENU_ITEM(submenu, MSG_ZPROBE_ZOFFSET, lcd_babystep_zoffset);
-    MENU_ITEM(gcode, MSG_TOUCHMI_SAVE, PSTR("M211 S1\nM500\nG1 F200 Z10"));
+    MENU_ITEM(gcode, MSG_TOUCHMI_SAVE, PSTR("M500\nG1 F200 Z10"));
     MENU_ITEM(gcode, MSG_TOUCHMI_ZTEST, PSTR("G28\nG1 F200 Z0"));
     END_MENU();
   }
@@ -329,7 +329,7 @@ void menu_configuration() {
       MENU_ITEM(submenu, MSG_BLTOUCH, menu_bltouch);
     #endif
 
-    #if ENABLED(TOUCHMI_PROBE)
+    #if ENABLED(TOUCH_MI_PROBE)
       MENU_ITEM(submenu, MSG_TOUCHMI_PROBE, menu_touchmi);
     #endif
   }

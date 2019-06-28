@@ -38,7 +38,7 @@
 #include "../gcode/gcode.h"
 #include "../lcd/ultralcd.h"
 
-#if ANY(Z_PROBE_SLED, Z_PROBE_ALLEN_KEY, PROBE_TRIGGERED_WHEN_STOWED_TEST, TOUCHMI_PROBE) || (QUIET_PROBING && ENABLED(PROBING_STEPPERS_OFF))
+#if ANY(Z_PROBE_SLED, Z_PROBE_ALLEN_KEY, PROBE_TRIGGERED_WHEN_STOWED_TEST, TOUCH_MI_PROBE) || (QUIET_PROBING && ENABLED(PROBING_STEPPERS_OFF))
   #include "../Marlin.h" // for stop(), disable_e_steppers
 #endif
 
@@ -103,43 +103,42 @@ float zprobe_zoffset; // Initialized by settings.load()
     #endif
   }
 
-#elif ENABLED(TOUCHMI_PROBE)
+#elif ENABLED(TOUCH_MI_PROBE)
 
   // Move to the magnet to unlock the probe
   void run_deploy_moves_script() {
-    #ifndef TOUCHMI_PROBE_DEPLOY_X
-      #define TOUCHMI_PROBE_DEPLOY_X 0
-    #endif
-
-    #if ENABLED(TOUCHMI_MANUAL_DEPLOY)
-      const screenFunc_t prev_screen = ui.currentScreen;
-      PGM_P const touchmi_str = PSTR(MSG_MANUAL_DEPLOY_TOUCHMI);
-      ui.return_to_status(); // To display the new status message
-      ui.set_status_P(touchmi_str, 99);
-      serialprintPGM(touchmi_str);
-      SERIAL_EOL();
-
-      KEEPALIVE_STATE(PAUSED_FOR_USER);
-      wait_for_user = true;
-      while (wait_for_user) idle();
-      ui.reset_status();
-      ui.return_to_status();
-      KEEPALIVE_STATE(IN_HANDLER);
-      ui.goto_screen(prev_screen);
-    #endif
-
-    #if TOUCHMI_PROBE_DEPLOY_X > X_MAX_BED
+    #ifndef TOUCH_MI_DEPLOY_XPOS
+      #define TOUCH_MI_DEPLOY_XPOS 0
+    #elif TOUCH_MI_DEPLOY_XPOS > X_MAX_BED
       TemporaryGlobalEndstopsState unlock_x(false);
     #endif
-    do_blocking_move_to_x(TOUCHMI_PROBE_DEPLOY_X);
+
+    #if ENABLED(TOUCH_MI_MANUAL_DEPLOY)
+      const screenFunc_t prev_screen = ui.currentScreen;
+      LCD_MESSAGEPGM(MSG_MANUAL_DEPLOY_TOUCHMI);
+      SERIAL_ECHOLNPGM("Deploy TouchMi probe.");
+      ui.return_to_status();
+
+      KEEPALIVE_STATE(PAUSED_FOR_USER);
+      wait_for_user = true; // LCD click or M108 will clear this
+      #if ENABLED(HOST_PROMPT_SUPPORT)
+        host_prompt_do(PROMPT_USER_CONTINUE, PSTR("Deploy TouchMI probe. Confirm or M108 to continue."), PSTR("Continue"));
+      #endif
+      while (wait_for_user) idle();
+      ui.reset_status();
+      ui.goto_screen(prev_screen);
+      KEEPALIVE_STATE(IN_HANDLER);
+    #else
+      do_blocking_move_to_x(TOUCH_MI_DEPLOY_XPOS);
+    #endif
   }
 
   // Move down to the bed to stow the probe
   void run_stow_moves_script() {
-    const float TOUCHMI_RETURN_POSITION[] = { current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS] };
+    const float old_pos[] = { current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS] };
     endstops.enable_z_probe(false);
-    do_blocking_move_to_z(PROBE_RETRACT_HEIGHT, MMM_TO_MMS(HOMING_FEEDRATE_Z));
-    do_blocking_move_to(TOUCHMI_RETURN_POSITION, MMM_TO_MMS(HOMING_FEEDRATE_Z));
+    do_blocking_move_to_z(TOUCH_MI_RETRACT_Z, MMM_TO_MMS(HOMING_FEEDRATE_Z));
+    do_blocking_move_to(old_pos, MMM_TO_MMS(HOMING_FEEDRATE_Z));
   }
 
 #elif ENABLED(Z_PROBE_ALLEN_KEY)
@@ -405,7 +404,7 @@ FORCE_INLINE void probe_specific_action(const bool deploy) {
       if (deploy) bltouch.deploy(); else bltouch.stow();
     #endif
 
-  #elif EITHER(TOUCHMI_PROBE, Z_PROBE_ALLEN_KEY)
+  #elif EITHER(TOUCH_MI_PROBE, Z_PROBE_ALLEN_KEY)
 
     deploy ? run_deploy_moves_script() : run_stow_moves_script();
 
