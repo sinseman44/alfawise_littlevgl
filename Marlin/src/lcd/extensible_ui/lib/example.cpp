@@ -25,6 +25,9 @@
 
 #include "../ui_api.h"
 
+#include <lvgl.h>
+
+
 // To implement a new UI, complete the functions below and
 // read or update Marlin's state using the methods in the
 // ExtUI methods in "../ui_api.h"
@@ -44,6 +47,7 @@ namespace ExtUI {
      *   WRITE(pin,value)
      *   READ(pin)
      */
+    lv_init();
   }
   void onIdle() {}
   void onPrinterKilled(PGM_P const msg) {}
@@ -54,10 +58,11 @@ namespace ExtUI {
   void onPrintTimerStarted() {}
   void onPrintTimerPaused() {}
   void onPrintTimerStopped() {}
-  void onFilamentRunout() {}
+  void onFilamentRunout(const extruder_t extruder) {}
   void onUserConfirmRequired(const char * const msg) {}
   void onStatusChanged(const char * const msg) {}
   void onFactoryReset() {}
+  void onMeshUpdate(const uint8_t xpos, const uint8_t ypos, const float zval) {}
 
   void onStoreSettings(char *buff) {
     // This is called when saving to EEPROM (i.e. M500). If the ExtUI needs

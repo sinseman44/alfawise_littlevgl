@@ -232,7 +232,7 @@ millis_t next_button_update_ms;
   }
 
 #endif // HAS_LCD_MENU
-
+#if DISABLED(EXTENSIBLE_UI)
 void MarlinUI::init() {
 
   init_lcd();
@@ -302,6 +302,7 @@ void MarlinUI::init() {
     encoderDiff = 0;
   #endif
 }
+#endif
 
 bool MarlinUI::get_blink() {
   static uint8_t blink = 0;
@@ -536,11 +537,13 @@ void MarlinUI::status_screen() {
   draw_status_screen();
 }
 
+#if DISABLED(EXTENSIBLE_UI)
 void MarlinUI::kill_screen(PGM_P lcd_msg) {
   init();
   set_alert_status_P(lcd_msg);
   draw_kill_screen();
 }
+#endif
 
 void MarlinUI::quick_feedback(const bool clear_buttons/*=true*/) {
   #if HAS_LCD_MENU && !defined(TOUCH_BUTTONS)
@@ -683,6 +686,7 @@ bool MarlinUI::detected() {
   ;
 }
 
+#if DISABLED(EXTENSIBLE_UI)
 void MarlinUI::update() {
 
   static uint16_t max_display_update_time = 0;
@@ -959,6 +963,7 @@ void MarlinUI::update() {
 
   } // ELAPSED(ms, next_lcd_update_ms)
 }
+#endif
 
 #if HAS_ADC_BUTTONS
 
