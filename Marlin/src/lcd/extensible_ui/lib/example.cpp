@@ -38,18 +38,44 @@
 
 namespace ExtUI {
   void onStartup() {
-    /* Initialize the display module here. The following
-     * routines are available for access to the GPIO pins:
-     *
-     *   SET_OUTPUT(pin)
-     *   SET_INPUT_PULLUP(pin)
-     *   SET_INPUT(pin)
-     *   WRITE(pin,value)
-     *   READ(pin)
-     */
+    // Initialize or re-initialize the LCD
+    #if PIN_EXISTS(LCD_BACKLIGHT) // Avoid White flash on init
+        OUT_WRITE(LCD_BACKLIGHT_PIN, LOW);
+    #endif
+
+    #if PIN_EXISTS(LCD_RESET)
+        OUT_WRITE(LCD_RESET_PIN, LOW); // perform a clean hardware reset
+        _delay_ms(5);
+        OUT_WRITE(LCD_RESET_PIN, HIGH);
+        _delay_ms(5); // delay to allow the display to initialize
+    #endif
+
+    #if PIN_EXISTS(LCD_BACKLIGHT) // Enable LCD backlight, late for TFT
+        OUT_WRITE(LCD_BACKLIGHT_PIN, HIGH);
+    #endif
+
+    // TODO: CONFIGURER LE CONSTRAST SI BESOIN
+
     lv_init();
+
+//    /******** 1ER TEST => HELLO WORLD *********/
+//    /* Get the current screen */
+//    lv_obj_t * scr = lv_disp_get_scr_act(NULL);
+//    /* Create a Label on the currently active screen */
+//    lv_obj_t * label1 =  lv_label_create(scr, NULL);
+//    /* Modify the Label's text */
+//    lv_label_set_text(label1, "Hello world!");
+//    /* Align the Label to the center
+//     * NULL means align on parent (which is the screen now)
+//     * 0, 0 at the end means an x, y offset after alignment */
+//    lv_obj_align(label1, NULL, LV_ALIGN_CENTER, 0, 0);
   }
-  void onIdle() {}
+
+  void onIdle() {
+      millis_t ms = millis();
+      lv_task_handler();
+  }
+
   void onPrinterKilled(PGM_P const msg) {}
   void onMediaInserted() {};
   void onMediaError() {};
